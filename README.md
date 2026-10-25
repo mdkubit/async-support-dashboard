@@ -3,6 +3,28 @@
 Discovery of remote support jobs with text-channel keywords and no explicit
 heavy phone duties. Accepted roles may include occasional calls.
 
+## Frontend
+
+`index.html`, `style.css`, and `app.js` are a buildless static dashboard. Deploy
+the repository root to your static host; no package installation or build command
+is needed. For local preview, run `python -m http.server 8000` and open
+`http://localhost:8000` (opening the HTML directly cannot reliably fetch JSON).
+
+The page fetches `jobs.json` once on load with cache revalidation. Channel buttons
+and search filter the in-memory feed immediately. Results are sorted newest first.
+Loading, empty, invalid-feed, and network-error states include recovery controls.
+Sample records are labeled and have no application links. Source names remain
+visible beside outbound listing links. No external fonts, scripts, or images load.
+
+**Global Remote** requires an explicit `worldwide`, `global`, `global remote`,
+`anywhere`, or `work from anywhere` tag. A generic `remote` tag is insufficient.
+The current updater does not supply location eligibility tags, so this filter
+correctly shows its informative empty state until verified metadata is available.
+Other cards direct visitors to check the original role's location requirements.
+
+The layout supports mobile through desktop, keyboard navigation, visible focus,
+screen-reader status messages, and reduced-motion preferences.
+
 ## Updater
 
 Python 3.11+; no dependencies or API keys:
