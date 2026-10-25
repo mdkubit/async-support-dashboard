@@ -1,0 +1,70 @@
+name: Update support jobs
+
+on:
+  schedule:
+    - cron: '17 */12 * * *' # 00:17 and 12:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: support-jobs-update
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Check out default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test filtering and fault tolerance
+        run: python -m unittest -v
+
+      - name: Fetch and update jobs
+        run: python update_jobs.py
+
+      - name: Commit changed data
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- jobs.json
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore: refresh support jobs"
+          git pull --rebase origin "$DEFAULT_BRANCH"
+          git push origin "HEAD:$DEFAULT_BRANCH"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # Optional Vercel/Netlify deploy hook; store the URL as a repository secret.
+      # Leave unset when using the host's automatic Git deployment integration.
+      - name: Trigger optional deployment
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$DEPLOY_HOOK_URL" ]; then
+            curl --fail --silent --show-error --output /dev/null \
+              --connect-timeout 10 --max-time 60 \
+              --request POST "$DEPLOY_HOOK_URL"
+          fi
